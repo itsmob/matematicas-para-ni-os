@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { MathProvider } from './contexto/MathContext'
 import { ScoreBoard } from './componentes/ScoreBoard'
-import { OperationSelector } from './componentes/OperationSelector'
 import { ExerciseCard } from './componentes/ExerciseCard'
 import { AnswerForm } from './componentes/AnswerForm'
 import { ConfigModal } from './componentes/ConfigModal'
@@ -16,14 +15,13 @@ function AppContent() {
         <button
           style={styles.configBtn}
           onClick={() => setIsModalOpen(true)}
-          title="Configurar Rangos"
+          title="Configurar Ejercicios"
         >
           ⚙️
         </button>
       </header>
 
       <ScoreBoard />
-      <OperationSelector />
       <ExerciseCard />
       <AnswerForm />
 

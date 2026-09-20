@@ -1,3 +1,4 @@
+import { OperationSelector } from './OperationSelector'
 import { RangeConfig } from './RangeConfig'
 
 interface ConfigModalProps {
@@ -18,6 +19,13 @@ export const ConfigModal = ({ isOpen, onClose }: ConfigModalProps) => {
           </button>
         </div>
 
+        {/* Selector de Operación */}
+        <div style={styles.section}>
+          <p style={styles.sectionTitle}><strong>Tipo de Operación:</strong></p>
+          <OperationSelector />
+        </div>
+
+        {/* Configuración de Rangos */}
         <RangeConfig />
 
         <button style={styles.saveBtn} onClick={onClose}>
@@ -67,6 +75,13 @@ const styles = {
     fontSize: '1.2rem',
     cursor: 'pointer',
     color: '#888',
+  },
+  section: {
+    marginBottom: '15px',
+  },
+  sectionTitle: {
+    margin: '0 0 10px 0',
+    color: '#555',
   },
   saveBtn: {
     marginTop: '15px',
