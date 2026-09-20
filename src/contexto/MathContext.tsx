@@ -1,44 +1,85 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 
 export type Operacion = '+' | '-' | '×' | '÷'
+export type ModoJuego = 'libre' | 'cronometro'
+export type EstadoJuego = 'configuracion' | 'jugando' | 'finalizado'
 
 interface MathContextType {
+  // Configuración
+  operacion: Operacion
   minA: number
   maxA: number
   minB: number
   maxB: number
-  operacion: Operacion
+  modoJuego: ModoJuego
+  tiempoLimite: number // Tiempo global en segundos para toda la sesión
+  totalEjercicios: number
+
+  // Estado del juego / sesión
+  estadoJuego: EstadoJuego
+  ejercicioActual: number
   numA: number | null
   numB: number | null
   userAnswer: string
   feedback: { msg: string; tipo: 'exito' | 'error' | null }
-  puntos: number
+  correctas: number
+  incorrectas: number
+  tiempoRestante: number
+
+  // Setters de configuración
+  setOperacion: (op: Operacion) => void
   setMinA: (val: number) => void
   setMaxA: (val: number) => void
   setMinB: (val: number) => void
   setMaxB: (val: number) => void
-  setOperacion: (op: Operacion) => void
+  setModoJuego: (modo: ModoJuego) => void
+  setTiempoLimite: (val: number) => void
+  setTotalEjercicios: (val: number) => void
   setUserAnswer: (ans: string) => void
-  generarNumeros: () => void
+
+  // Acciones
+  iniciarJuego: () => void
+  reiniciarJuego: () => void
   comprobarRespuesta: (e?: React.FormEvent) => void
 }
 
 const MathContext = createContext<MathContextType | undefined>(undefined)
 
 export const MathProvider = ({ children }: { children: ReactNode }) => {
+  // 1. Estados de Configuración
+  const [operacion, setOperacion] = useState<Operacion>('+')
   const [minA, setMinA] = useState<number>(1)
   const [maxA, setMaxA] = useState<number>(10)
   const [minB, setMinB] = useState<number>(1)
   const [maxB, setMaxB] = useState<number>(10)
+  const [modoJuego, setModoJuego] = useState<ModoJuego>('libre')
+  const [tiempoLimite, setTiempoLimite] = useState<number>(300) // 5 minutos por defecto (300 s)
+  const [totalEjercicios, setTotalEjercicios] = useState<number>(10)
 
-  const [operacion, setOperacion] = useState<Operacion>('+')
+  // 2. Estados del Juego
+  const [estadoJuego, setEstadoJuego] = useState<EstadoJuego>('configuracion')
+  const [ejercicioActual, setEjercicioActual] = useState<number>(1)
   const [numA, setNumA] = useState<number | null>(null)
   const [numB, setNumB] = useState<number | null>(null)
-
   const [userAnswer, setUserAnswer] = useState<string>('')
-  const [feedback, setFeedback] = useState<{ msg: string; tipo: 'exito' | 'error' | null }>({ msg: '', tipo: null })
-  const [puntos, setPuntos] = useState<number>(0)
+  const [feedback, setFeedback] = useState<{ msg: string; tipo: 'exito' | 'error' | null }>({
+    msg: '',
+    tipo: null,
+  })
 
+  // Puntuación y Tiempo
+  const [correctas, setCorrectas] = useState<number>(0)
+  const [incorrectas, setIncorrectas] = useState<number>(0)
+  const [tiempoRestante, setTiempoRestante] = useState<number>(300)
+
+  // Sincronizar tiempoRestante con tiempoLimite cuando se edita la configuración
+  useEffect(() => {
+    if (estadoJuego === 'configuracion') {
+      setTiempoRestante(tiempoLimite)
+    }
+  }, [tiempoLimite, estadoJuego])
+
+  // Generador de números aleatorios
   const getRandomInt = (min: number, max: number) => {
     const minVal = Math.min(min, max)
     const maxVal = Math.max(min, max)
@@ -66,10 +107,42 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
     setFeedback({ msg: '', tipo: null })
   }
 
-  useEffect(() => {
+  // Iniciar una nueva sesión de ejercicios
+  const iniciarJuego = () => {
+    setCorrectas(0)
+    setIncorrectas(0)
+    setEjercicioActual(1)
+    setTiempoRestante(tiempoLimite) // Reinicia el contador con el tiempo seleccionado
+    setEstadoJuego('jugando')
     generarNumeros()
-  }, [operacion])
+  }
 
+  // Volver a la pantalla de configuración / reinicio
+  const reiniciarJuego = () => {
+    setEstadoJuego('configuracion')
+    setUserAnswer('')
+    setFeedback({ msg: '', tipo: null })
+  }
+
+  // Manejo del temporizador global en modo 'cronometro'
+  useEffect(() => {
+    if (estadoJuego !== 'jugando' || modoJuego !== 'cronometro') return
+
+    const timer = setInterval(() => {
+      setTiempoRestante((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          setEstadoJuego('finalizado')
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [estadoJuego, modoJuego])
+
+  // Calcular el resultado esperado
   const calcularResultadoCorrecto = (): number | null => {
     if (numA === null || numB === null) return null
     switch (operacion) {
@@ -81,41 +154,66 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  // Comprobar la respuesta e ir advancing
   const comprobarRespuesta = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (userAnswer.trim() === '') return
+    if (userAnswer.trim() === '' || estadoJuego !== 'jugando') return
 
     const correcto = calcularResultadoCorrecto()
     const respuestaNum = Number(userAnswer)
 
-    if (respuestaNum === correcto) {
-      setFeedback({ msg: '🎉 ¡Excelente! ¡Resultado Correcto!', tipo: 'exito' })
-      setPuntos((prev) => prev + 1)
+    const esCorrecto = respuestaNum === correcto
+
+    if (esCorrecto) {
+      setCorrectas((prev) => prev + 1)
+      setFeedback({ msg: '🎉 ¡Correcto!', tipo: 'exito' })
     } else {
-      setFeedback({ msg: `❌ Casi... El resultado era ${correcto}. ¡Inténtalo de nuevo!`, tipo: 'error' })
+      setIncorrectas((prev) => prev + 1)
+      setFeedback({ msg: `❌ El resultado era ${correcto}.`, tipo: 'error' })
     }
+
+    // Avanzar al siguiente ejercicio o finalizar
+    setTimeout(() => {
+      if (ejercicioActual < totalEjercicios) {
+        setEjercicioActual((prev) => prev + 1)
+        generarNumeros()
+      } else {
+        setEstadoJuego('finalizado')
+      }
+    }, 1000)
   }
 
   return (
     <MathContext.Provider
       value={{
+        operacion,
         minA,
         maxA,
         minB,
         maxB,
-        operacion,
+        modoJuego,
+        tiempoLimite,
+        totalEjercicios,
+        estadoJuego,
+        ejercicioActual,
         numA,
         numB,
         userAnswer,
         feedback,
-        puntos,
+        correctas,
+        incorrectas,
+        tiempoRestante,
+        setOperacion,
         setMinA,
         setMaxA,
         setMinB,
         setMaxB,
-        setOperacion,
+        setModoJuego,
+        setTiempoLimite,
+        setTotalEjercicios,
         setUserAnswer,
-        generarNumeros,
+        iniciarJuego,
+        reiniciarJuego,
         comprobarRespuesta,
       }}
     >
@@ -124,7 +222,6 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
-// Hook personalizado para usar el contexto con facilidad
 export const useMath = () => {
   const context = useContext(MathContext)
   if (!context) {

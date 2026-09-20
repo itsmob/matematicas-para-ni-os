@@ -1,5 +1,8 @@
+import { useMath } from '../contexto/MathContext'
 import { OperationSelector } from './OperationSelector'
 import { RangeConfig } from './RangeConfig'
+import { ExerciseCountSelector } from './ExerciseCountSelector'
+import { TimeSelector } from './TimeSelector'
 
 interface ConfigModalProps {
   isOpen: boolean
@@ -7,14 +10,21 @@ interface ConfigModalProps {
 }
 
 export const ConfigModal = ({ isOpen, onClose }: ConfigModalProps) => {
+  const { modoJuego, setModoJuego, reiniciarJuego } = useMath()
+
   if (!isOpen) return null
+
+  const handleSave = () => {
+    reiniciarJuego()
+    onClose()
+  }
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h2 style={styles.modalTitle}>Configuración</h2>
-          <button style={styles.closeBtn} onClick={onClose}>
+          <button type="button" style={styles.closeBtn} onClick={onClose}>
             ✖
           </button>
         </div>
@@ -25,10 +35,53 @@ export const ConfigModal = ({ isOpen, onClose }: ConfigModalProps) => {
           <OperationSelector />
         </div>
 
-        {/* Configuración de Rangos */}
-        <RangeConfig />
+        {/* Configuración de Rangos (Mínimos y Máximos) */}
+        <div style={styles.section}>
+          <RangeConfig />
+        </div>
 
-        <button style={styles.saveBtn} onClick={onClose}>
+        {/* Cantidad de Ejercicios */}
+        <div style={styles.section}>
+          <ExerciseCountSelector />
+        </div>
+
+        {/* Configuración del Modo de Juego / Reloj */}
+        <div style={styles.section}>
+          <p style={styles.sectionTitle}><strong>Modo de reloj:</strong></p>
+          <div style={styles.modeContainer}>
+            <button
+              type="button"
+              style={{
+                ...styles.modeBtn,
+                backgroundColor: modoJuego === 'libre' ? '#4A90E2' : '#e0e0e0',
+                color: modoJuego === 'libre' ? '#fff' : '#333',
+              }}
+              onClick={() => setModoJuego('libre')}
+            >
+              Libre
+            </button>
+            <button
+              type="button"
+              style={{
+                ...styles.modeBtn,
+                backgroundColor: modoJuego === 'cronometro' ? '#4A90E2' : '#e0e0e0',
+                color: modoJuego === 'cronometro' ? '#fff' : '#333',
+              }}
+              onClick={() => setModoJuego('cronometro')}
+            >
+              Contra Reloj
+            </button>
+          </div>
+        </div>
+
+        {/* Selector de Tiempo en Minutos (Solo si está activo Contra Reloj) */}
+        {modoJuego === 'cronometro' && (
+          <div style={styles.section}>
+            <TimeSelector />
+          </div>
+        )}
+
+        <button type="button" style={styles.saveBtn} onClick={handleSave}>
           Guardar y Cerrar
         </button>
       </div>
@@ -36,9 +89,9 @@ export const ConfigModal = ({ isOpen, onClose }: ConfigModalProps) => {
   )
 }
 
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   modalOverlay: {
-    position: 'fixed' as const,
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
@@ -56,7 +109,10 @@ const styles = {
     padding: '20px',
     width: '100%',
     maxWidth: '420px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
     boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+    boxSizing: 'border-box',
   },
   modalHeader: {
     display: 'flex',
@@ -82,6 +138,20 @@ const styles = {
   sectionTitle: {
     margin: '0 0 10px 0',
     color: '#555',
+  },
+  modeContainer: {
+    display: 'flex',
+    gap: '10px',
+  },
+  modeBtn: {
+    flex: 1,
+    padding: '8px 12px',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '0.95rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
   },
   saveBtn: {
     marginTop: '15px',
