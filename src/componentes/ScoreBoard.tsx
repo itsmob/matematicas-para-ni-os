@@ -1,11 +1,11 @@
 import { useMath } from '../contexto/MathContext'
 
 export const ScoreBoard = () => {
-  const { puntos } = useMath()
+  const { correctas, incorrectas } = useMath()
 
   return (
     <div style={styles.scoreBoard}>
-      ⭐ Puntos: <strong>{puntos}</strong>
+      ⭐ Correctas: <strong>{correctas}</strong> | Incorrectas: <strong>{incorrectas}</strong>
     </div>
   )
 }
