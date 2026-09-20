@@ -25,6 +25,8 @@ interface MathContextType {
   correctas: number
   incorrectas: number
   tiempoRestante: number
+  tiempoTranscurrido: number
+  tiempo: number // Propiedad computada unificada para el Timer
 
   // Setters de configuración
   setOperacion: (op: Operacion) => void
@@ -71,11 +73,13 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
   const [correctas, setCorrectas] = useState<number>(0)
   const [incorrectas, setIncorrectas] = useState<number>(0)
   const [tiempoRestante, setTiempoRestante] = useState<number>(300)
+  const [tiempoTranscurrido, setTiempoTranscurrido] = useState<number>(0)
 
   // Sincronizar tiempoRestante con tiempoLimite cuando se edita la configuración
   useEffect(() => {
     if (estadoJuego === 'configuracion') {
       setTiempoRestante(tiempoLimite)
+      setTiempoTranscurrido(0)
     }
   }, [tiempoLimite, estadoJuego])
 
@@ -112,7 +116,8 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
     setCorrectas(0)
     setIncorrectas(0)
     setEjercicioActual(1)
-    setTiempoRestante(tiempoLimite) // Reinicia el contador con el tiempo seleccionado
+    setTiempoRestante(tiempoLimite)
+    setTiempoTranscurrido(0)
     setEstadoJuego('jugando')
     generarNumeros()
   }
@@ -124,19 +129,23 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
     setFeedback({ msg: '', tipo: null })
   }
 
-  // Manejo del temporizador global en modo 'cronometro'
+  // Manejo del temporizador (Modo Cronómetro y Modo Libre)
   useEffect(() => {
-    if (estadoJuego !== 'jugando' || modoJuego !== 'cronometro') return
+    if (estadoJuego !== 'jugando') return
 
     const timer = setInterval(() => {
-      setTiempoRestante((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          setEstadoJuego('finalizado')
-          return 0
-        }
-        return prev - 1
-      })
+      if (modoJuego === 'cronometro') {
+        setTiempoRestante((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            setEstadoJuego('finalizado')
+            return 0
+          }
+          return prev - 1
+        })
+      } else {
+        setTiempoTranscurrido((prev) => prev + 1)
+      }
     }, 1000)
 
     return () => clearInterval(timer)
@@ -154,7 +163,7 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  // Comprobar la respuesta e ir advancing
+  // Comprobar la respuesta e ir avanzando de inmediato sin retraso
   const comprobarRespuesta = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (userAnswer.trim() === '' || estadoJuego !== 'jugando') return
@@ -172,16 +181,17 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
       setFeedback({ msg: `❌ El resultado era ${correcto}.`, tipo: 'error' })
     }
 
-    // Avanzar al siguiente ejercicio o finalizar
-    setTimeout(() => {
-      if (ejercicioActual < totalEjercicios) {
-        setEjercicioActual((prev) => prev + 1)
-        generarNumeros()
-      } else {
-        setEstadoJuego('finalizado')
-      }
-    }, 1000)
+    // Avanzar al siguiente ejercicio o finalizar inmediatamente
+    if (ejercicioActual < totalEjercicios) {
+      setEjercicioActual((prev) => prev + 1)
+      generarNumeros()
+    } else {
+      setEstadoJuego('finalizado')
+    }
   }
+
+  // Valor unificado según el modo
+  const tiempo = modoJuego === 'cronometro' ? tiempoRestante : tiempoTranscurrido
 
   return (
     <MathContext.Provider
@@ -203,6 +213,8 @@ export const MathProvider = ({ children }: { children: ReactNode }) => {
         correctas,
         incorrectas,
         tiempoRestante,
+        tiempoTranscurrido,
+        tiempo,
         setOperacion,
         setMinA,
         setMaxA,
